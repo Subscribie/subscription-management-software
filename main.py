@@ -46,7 +46,7 @@ class GoCardless(TransactionGatewayAbstract):
       return "GC"
 
     def init(self):
-	self.client = gocardless_pro.Client(
+	self.gcclient = gocardless_pro.Client(
 	    # We recommend storing your access token in an 
             # environment variable for security
 	    access_token = os.getenv('gocardless'),
@@ -70,11 +70,11 @@ class GoCardless(TransactionGatewayAbstract):
         :param None
         :return: list of payments
         """
-        paymentList = self.client.payments.list()
+        paymentList = self.gcclient.payments.list()
         records = paymentList.records
         after = paymentList.after
         while after is not None:
-            fetchedPayments = self.client.payments.list(params={"after":after,
+            fetchedPayments = self.gcclient.payments.list(params={"after":after,
                                                         "limit":500})
             after =  fetchedPayments.after
             records = records + fetchedPayments.records
@@ -91,11 +91,11 @@ class GoCardless(TransactionGatewayAbstract):
         :param None
         :return: list of payouts
         """
-        payoutList = self.client.payouts.list()
+        payoutList = self.gcclient.payouts.list()
         records = payoutList.records
         after = payoutList.after
         while after is not None:
-            fetchedPayouts = self.client.payouts.list(params={"after":after,
+            fetchedPayouts = self.gcclient.payouts.list(params={"after":after,
                                                         "limit":500})
             after =  fetchedPayouts.after
             records = records + fetchedPayouts.records
@@ -123,11 +123,20 @@ class GoCardless(TransactionGatewayAbstract):
         """
         for paymentindex,payment in enumerate(self.payments):
 	    mandate_id = payment.attributes['links']['mandate']
-            mandate = self.client.mandates.get(mandate_id)
+            mandate = self.gcclient.mandates.get(mandate_id)
             # Replace mandate id refernce with full mandate metadata
             self.payments[paymentindex].attributes['links']['mandate'] = mandate
 
-         
+    def gc_match_mandate_to_customer(self):
+        """For each payment's mandate, update its 
+        payment.attributes['links']['mandate'].attributes['links']['customer']
+        reference with the complete customer meta data from GoCardless.
+        :return: None 
+        """
+        for paymentindex,payment in enumerate(self.payments):
+            customer_id = payment.attributes['links']['mandate'].attributes['links']['customer']
+            customer = self.gcclient.customers.get(customer_id)
+            self.payments[paymentindex].attributes['links']['mandate'].attributes['links']['customer'] = customer
 
 if __name__ == "__main__":
     g = GoCardless()
@@ -139,6 +148,8 @@ if __name__ == "__main__":
     g.gc_match_payments_to_payouts()
     print "Matching payments to mandates"
     g.gc_match_payments_to_mandate()
+    print "Matching mandate to customer" 
+    g.gc_match_mandate_to_customer()
 
 class Gamma(TransactionGatewayAbstract):
     def get_name(self):
