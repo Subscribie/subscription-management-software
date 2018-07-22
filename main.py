@@ -106,9 +106,7 @@ class GoCardless(TransactionGatewayAbstract):
         """For each payment (if has been paid out), fetch the full  payout meta 
         data and replate the existing self.payments[index] payout ID with the 
         full payout meta data. 
-        :param payments: list of GoCardless payment objects
-        :param payouts: list of GoCardless payout objects
-        :return: list of GoCardless payment objects with payout _embedded
+        :return: None 
          """
         for paymentindex,payment in enumerate(self.payments):
             if 'payout' in payment.attributes['links']:
@@ -117,13 +115,30 @@ class GoCardless(TransactionGatewayAbstract):
                 for payoutindex,payout in enumerate(self.payouts):
                     if self.payouts[payoutindex].id == payout_id:
                         payment.attributes['links']['payout'] = self.payouts[payoutindex]
+
+    def gc_match_payments_to_mandate(self):
+        """For each payment, update the links->mandate id reference with the 
+        complete mandate data from GoCardless
+        :return: None 
+        """
+        for paymentindex,payment in enumerate(self.payments):
+	    mandate_id = payment.attributes['links']['mandate']
+            mandate = self.client.mandates.get(mandate_id)
+            # Replace mandate id refernce with full mandate metadata
+            self.payments[paymentindex].attributes['links']['mandate'] = mandate
+
          
 
 if __name__ == "__main__":
     g = GoCardless()
+    print "Getting all GoCardless payments"
     g.gc_get_payments()
+    print "Getting all GoCardless payouts"
     g.gc_get_payouts()
+    print "Matching payments to payouts"
     g.gc_match_payments_to_payouts()
+    print "Matching payments to mandates"
+    g.gc_match_payments_to_mandate()
 
 class Gamma(TransactionGatewayAbstract):
     def get_name(self):
