@@ -163,6 +163,17 @@ class GoCardless(TransactionGatewayAbstract):
             customer = self.gcclient.customers.get(customer_id)
             self.payments[paymentindex].attributes['links']['mandate'].attributes['links']['customer'] = customer
 
+    def gc_match_mandate_to_customer_bank_account(self):
+        """For each payment's mandate, update its
+        payment.attributes['links']['mandate'].attributes['links']['customer_bank_account']
+        reference with the complete customer bank account meta data from GoCardless.
+        :return: None 
+        """
+        for paymentindex,payment in enumerate(self.payments):
+            customer_bank_account_id = payment.attributes['links']['mandate'].attributes['links']['customer_bank_account']
+            customer_bank_account = self.gcclient.customer_bank_accounts.get(customer_bank_account_id)
+            self.payments[paymentindex].attributes['links']['mandate'].attributes['links']['customer_bank_account'] = customer_bank_account
+
     def gc_match_payments_to_creditors(self):
         """For each payment, update its 
         payment.attributes['links']['creditor'] reference with the complete 
@@ -198,6 +209,8 @@ if __name__ == "__main__":
         g.gc_match_payments_to_creditors()
         print "Matching payouts to creditor bank accounts"
         g.gc_match_payouts_to_creditor_bank_account()
+        print "Matching mandates to customer bank accounts"
+        g.gc_match_mandate_to_customer_bank_account()
 
 
     # Pickle it!
