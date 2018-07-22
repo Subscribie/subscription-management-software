@@ -46,7 +46,6 @@ class GoCardless(TransactionGatewayAbstract):
       return "GC"
 
     def init(self):
-        import pdb;pdb.set_trace()
 	self.client = gocardless_pro.Client(
 	    # We recommend storing your access token in an 
             # environment variable for security
@@ -60,8 +59,14 @@ class GoCardless(TransactionGatewayAbstract):
 
     def gc_get_payments(self):
         """Payment objects represent payments 
-        from a customer to a creditor, taken against 
-        a Direct Debit mandate.
+        from a customer to a creditor, taken against a Direct Debit mandate. 
+        This method gets all the payments made to a merchant. WARNING remember
+        a GoCardless `payment` means GoCardless has collected the money on your 
+        behalf, a confirmed `payout` means you actuall have the money in your 
+        account. With GoCardless, Payments are always made against a mandate 
+        (a customer MAY have more than one mandate). 
+        :meth:`gc_match_payments_to_payouts` matches payouts with payments by
+        updating self.payments with the full payout meta data.
         :param None
         :return: list of payments
         """
@@ -97,33 +102,28 @@ class GoCardless(TransactionGatewayAbstract):
         self.payouts = records
         return records
 
-    def gc_match_payments_to_payouts(self, payments, payouts):
-        """
+    def gc_match_payments_to_payouts(self):
+        """For each payment (if has been paid out), fetch the full  payout meta 
+        data and replate the existing self.payments[index] payout ID with the 
+        full payout meta data. 
         :param payments: list of GoCardless payment objects
         :param payouts: list of GoCardless payout objects
         :return: list of GoCardless payment objects with payout _embedded
          """
-        # For each payment get its payout (if has happened)
-        url = 'https://api-sandbox.gocardless.com/events?payout=PY123&action=paid'
-        auth_token = ''.join(['Bearer ', os.getenv('gocardless')])
-        headers = {'Authorization': auth_token,
-                   'GoCardless-Version': '2015-07-06'}
-        req = urllib2.Request(url, None, headers)
-        try:
-	    response = urllib2.urlopen(req)
-	    the_page = json.loads(response.read())
-            import pdb;pdb.set_trace()
-        except urllib2.HTTPError as e:
-            print e.code
-            print e.read()
+        for paymentindex,payment in enumerate(self.payments):
+            if 'payout' in payment.attributes['links']:
+                payout_id = payment.attributes['links']['payout']
+                # Update payment reference with full payout meta
+                for payoutindex,payout in enumerate(self.payouts):
+                    if self.payouts[payoutindex].id == payout_id:
+                        payment.attributes['links']['payout'] = self.payouts[payoutindex]
          
-
 
 if __name__ == "__main__":
     g = GoCardless()
     g.gc_get_payments()
     g.gc_get_payouts()
-    g.gc_match_payments_to_payouts(g.payments, g.payouts)
+    g.gc_match_payments_to_payouts()
 
 class Gamma(TransactionGatewayAbstract):
     def get_name(self):
