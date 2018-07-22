@@ -103,6 +103,17 @@ class GoCardless(TransactionGatewayAbstract):
         self.payouts = records
         return records
 
+    def gc_match_payouts_to_creditor_bank_account(self):
+        """For each payout, update its
+        payout.attributes['links']['creditor_bank_account'] reference with the 
+        complete creditor meta data from GoCardless.
+        :return: None 
+        """
+        for payoutindex,payout in enumerate(self.payouts):
+            creditor_bank_account_id = payout.attributes['links']['creditor_bank_account']
+            creditor_bank_account = self.gcclient.creditor_bank_accounts.get(creditor_bank_account_id)
+            self.payouts[payoutindex].attributes['links']['creditor_bank_account'] = creditor_bank_account
+
     def gc_match_payments_to_payouts(self):
         """For each payment (if has been paid out), fetch the full  payout meta 
         data and replate the existing self.payments[index] payout ID with the 
@@ -185,6 +196,9 @@ if __name__ == "__main__":
         g.gc_match_payments_to_subscription()
         print "Matching payments to creditors"
         g.gc_match_payments_to_creditors()
+        print "Matching payouts to creditor bank accounts"
+        g.gc_match_payouts_to_creditor_bank_account()
+
 
     # Pickle it!
     pickle.dump(g.payments, open("payments.p", "wb"))
