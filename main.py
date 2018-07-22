@@ -10,7 +10,8 @@
 from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import os, gocardless_pro, json
-import urllib2
+import urllib2, pickle
+
 
 class TransactionGatewayAbstract:
     __metaclass__ = ABCMeta
@@ -127,6 +128,19 @@ class GoCardless(TransactionGatewayAbstract):
             # Replace mandate id refernce with full mandate metadata
             self.payments[paymentindex].attributes['links']['mandate'] = mandate
 
+    def gc_match_payments_to_subscription(self):
+        """For each payment, (if a subscription exists) update the 
+        links->subscription id reference with the complete mandate data from 
+        GoCardless.
+        :return: None 
+        """
+        for paymentindex,payment in enumerate(self.payments):
+            if 'subscription' in payment.attributes['links']:
+                subscription_id = payment.attributes['links']['subscription']
+                subscription = self.gcclient.subscriptions.get(subscription_id)
+                # Update subsciption reference with full subscription meta
+                self.payments[paymentindex].attributes['links']['subscription'] = subscription
+
     def gc_match_mandate_to_customer(self):
         """For each payment's mandate, update its 
         payment.attributes['links']['mandate'].attributes['links']['customer']
@@ -138,18 +152,44 @@ class GoCardless(TransactionGatewayAbstract):
             customer = self.gcclient.customers.get(customer_id)
             self.payments[paymentindex].attributes['links']['mandate'].attributes['links']['customer'] = customer
 
+    def gc_match_payments_to_creditors(self):
+        """For each payment, update its 
+        payment.attributes['links']['creditor'] reference with the complete 
+        creditor meta data from GoCardless.
+        :return: None 
+        """
+        for paymentindex,payment in enumerate(self.payments):
+            creditor_id = payment.attributes['links']['creditor']
+            creditor = self.gcclient.creditors.get(creditor_id)
+            self.payments[paymentindex].attributes['links']['creditor'] = creditor
+
+
 if __name__ == "__main__":
     g = GoCardless()
-    print "Getting all GoCardless payments"
-    g.gc_get_payments()
-    print "Getting all GoCardless payouts"
-    g.gc_get_payouts()
-    print "Matching payments to payouts"
-    g.gc_match_payments_to_payouts()
-    print "Matching payments to mandates"
-    g.gc_match_payments_to_mandate()
-    print "Matching mandate to customer" 
-    g.gc_match_mandate_to_customer()
+    # Load from pickle if there
+    if os.path.isfile('payments.p') and os.path.isfile('payouts.p'):
+        g.payments = pickle.load(open('payments.p', 'rb'))
+        g.payouts = pickle.load(open('payouts.p', 'rb'))
+    else:
+        print "Getting all GoCardless payments"
+        g.gc_get_payments()
+        print "Getting all GoCardless payouts"
+        g.gc_get_payouts()
+        print "Matching payments to payouts"
+        g.gc_match_payments_to_payouts()
+        print "Matching payments to mandates"
+        g.gc_match_payments_to_mandate()
+        print "Matching mandate to customers" 
+        g.gc_match_mandate_to_customer()
+        print "Matching payments to subscriptions"
+        g.gc_match_payments_to_subscription()
+        print "Matching payments to creditors"
+        g.gc_match_payments_to_creditors()
+
+    # Pickle it!
+    pickle.dump(g.payments, open("payments.p", "wb"))
+    pickle.dump(g.payouts, open("payouts.p", "wb"))
+
 
 class Gamma(TransactionGatewayAbstract):
     def get_name(self):
