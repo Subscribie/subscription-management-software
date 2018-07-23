@@ -37,10 +37,12 @@ class TransactionGatewayAbstract:
         raise NotImplementedError()
 
 Transaction = namedtuple('Transaction', ['date', 'amount', 'reference',
-                                         'currency', 'mandate', 'payout',
-                                         'creditor', 'created_at', 'charge_date', 
-                                         'source_gateway', 'source_type', 
-                                         'source_id'], verbose=True)
+                                         'description', 'currency', 'mandate', 
+                                         'payout', 'creditor', 'created_at', 
+                                         'charge_date', 'customer_bank_account', 
+                                         'customer', 'source_gateway', 
+                                         'source_type', 'source_id'], 
+                                         verbose=True)
 
 Transaction.__new__.__defaults__ = (None,) * len(Transaction._fields)
 
@@ -99,6 +101,10 @@ class HSBCBusiness(TransactionGatewayAbstract):
                                              reference=row[2], currency='GBP'))
 
 class GoCardless(TransactionGatewayAbstract):
+
+    def __init__(self):
+        self.transactions = []
+
     def get_name(self):
       return "GoCardless"
 
@@ -142,6 +148,28 @@ class GoCardless(TransactionGatewayAbstract):
             # Pickle it!
             pickle.dump(self.payments, open("payments.p", "wb"))
             pickle.dump(self.payouts, open("payouts.p", "wb"))
+
+        # Transform to generic Transaction tuple
+        for transaction in self.payments:
+            source_gateway = 'GC'
+            source_id = transaction.id
+            date = transaction.attributes['charge_date']
+            amount = transaction.attributes['amount']
+            reference = transaction.attributes['links']['mandate'].attributes['reference']
+            description = transaction.attributes['description']
+            created_at = transaction.attributes['created_at']
+            currency = transaction.attributes['currency']
+            mandate = transaction.attributes['links']['mandate']
+            charge_date = transaction.attributes['charge_date']
+            creditor = transaction.attributes['links']['creditor']
+            customer_bank_account = transaction.attributes['links']['mandate'].attributes['links']['customer_bank_account'] #TODO abstract
+            customer = transaction.attributes['links']['mandate'].attributes['links']['customer']  #TODO abstract
+
+            self.transactions.append(Transaction(source_gateway=source_gateway,
+                                 source_id=source_id, date=date, amount=amount,
+                                 reference=reference, description=description,
+                                 created_at=created_at, currency=currency,
+                                 mandate=mandate, charge_date=charge_date))
 
     def gc_get_payments(self):
         """Payment objects represent payments 
