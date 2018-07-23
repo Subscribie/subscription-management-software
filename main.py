@@ -11,6 +11,7 @@ from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod, abstractproperty
 import os, datetime, gocardless_pro, json
 import urllib2, pickle, csv
+from collections import namedtuple
 
 
 class TransactionGatewayAbstract:
@@ -35,18 +36,14 @@ class TransactionGatewayAbstract:
     def fetchTransactions(self):
         raise NotImplementedError()
 
-class Transaction:
-    date = None
-    amount = None
-    reference = None
-    currency = None
-    mandate = None
-    payout = None
-    creditor = None
-    created_at = None
-    charge_date = None
-    source_gateway = None # TransactionGateway short name
-    source_id = None
+Transaction = namedtuple('Transaction', ['date', 'amount', 'reference',
+                                         'currency', 'mandate', 'payout',
+                                         'creditor', 'created_at', 'charge_date', 
+                                         'source_gateway', 'source_type', 
+                                         'source_id'], verbose=True)
+
+Transaction.__new__.__defaults__ = (None,) * len(Transaction._fields)
+
 
 class Stripe(TransactionGatewayAbstract):
     def get_name(self):
@@ -76,6 +73,7 @@ class HSBCBusiness(TransactionGatewayAbstract):
         :param None
         :return: list of payments
         """
+        self.hsbc_transactions = []
         self.transactions = []
 
         for root, dirs, statement_exports in os.walk('./exports/hsbc'):
@@ -88,7 +86,17 @@ class HSBCBusiness(TransactionGatewayAbstract):
                 for row in reader:
                     date = row.pop(0)
                     row.insert(0, datetime.datetime.strptime(date, "%d %b %Y").date())
-                    self.transactions.append(row)
+                    self.hsbc_transactions.append(row)
+                    # Transform to generic Transaction tuple
+                    if len(row[3]) is not 1:
+                        amount = ''.join(['-',row[3]]) #HSBC payout
+                    if len(row[4]) is not 1: #HSBC payment inward
+                        amount = row[4]
+
+                    self.transactions.append(Transaction(source_gateway='HSBCB',
+                                             source_id=row[2],source_type=row[1],
+                                             date=row[0], amount=amount, 
+                                             reference=row[2], currency='GBP'))
 
 class GoCardless(TransactionGatewayAbstract):
     def get_name(self):
