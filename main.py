@@ -8,9 +8,9 @@
     :license: GPLv3, see LICENSE for more details.
 """
 from __future__ import absolute_import
-from abc import ABCMeta, abstractmethod
-import os, gocardless_pro, json
-import urllib2, pickle
+from abc import ABCMeta, abstractmethod, abstractproperty
+import os, datetime, gocardless_pro, json
+import urllib2, pickle, csv
 
 
 class TransactionGatewayAbstract:
@@ -35,9 +35,60 @@ class TransactionGatewayAbstract:
     def fetchTransactions(self):
         raise NotImplementedError()
 
+class Transaction:
+    date = None
+    amount = None
+    reference = None
+    currency = None
+    mandate = None
+    payout = None
+    creditor = None
+    created_at = None
+    charge_date = None
+    source_gateway = None # TransactionGateway short name
+    source_id = None
+
 class Stripe(TransactionGatewayAbstract):
     def get_name(self):
       return "Stripe"
+
+class HSBCBusiness(TransactionGatewayAbstract):
+    """ The supported HSBC export is csv. The csv header is:
+    'Date    Type    Description Paid out    Paid in Balance'
+    Date format is: %d %b %Y  e.g. 12 Mar 2018
+    """
+    def get_name(self):
+        return "HSBC Business"
+
+    def get_short_name(self):
+        return "HSBCB"
+
+    def init(self):
+        pass
+
+    def fetchTransactions(self):
+        self.hsbc_combine_exports()
+        pass
+
+    def hsbc_combine_exports(self):
+        """Get all transaction export csv files, concatenate them and 
+        read into self.transactions
+        :param None
+        :return: list of payments
+        """
+        self.transactions = []
+
+        for root, dirs, statement_exports in os.walk('./exports/hsbc'):
+            pass
+
+        for statement_export in statement_exports: 
+            with open(statement_export, 'rb') as csvfile:
+                reader = csv.reader(csvfile, delimiter=',', quotechar='"')
+                header = next(reader) # Take header
+                for row in reader:
+                    date = row.pop(0)
+                    row.insert(0, datetime.datetime.strptime(date, "%d %b %Y").date())
+                    self.transactions.append(row)
 
 class GoCardless(TransactionGatewayAbstract):
     def get_name(self):
@@ -52,11 +103,37 @@ class GoCardless(TransactionGatewayAbstract):
             # environment variable for security
 	    access_token = os.getenv('gocardless'),
 	    # Change this to 'live' when you are ready to go live.
-	    environment = 'sandbox'
+	    environment = 'live'
 	)
 
     def fetchTransactions(self):
-        pass
+        # Load from pickle if there
+        if os.path.isfile('payments.p') and os.path.isfile('payouts.p'):
+            self.payments = pickle.load(open('payments.p', 'rb'))
+            self.payouts = pickle.load(open('payouts.p', 'rb'))
+        else:
+            print "Getting all GoCardless payments"
+            self.gc_get_payments()
+            print "Getting all GoCardless payouts"
+            self.gc_get_payouts()
+            print "Matching payments to payouts"
+            self.gc_match_payments_to_payouts()
+            print "Matching payments to mandates"
+            self.gc_match_payments_to_mandate()
+            print "Matching mandate to customers" 
+            self.gc_match_mandate_to_customer()
+            print "Matching payments to subscriptions"
+            self.gc_match_payments_to_subscription()
+            print "Matching payments to creditors"
+            self.gc_match_payments_to_creditors()
+            print "Matching payouts to creditor bank accounts"
+            self.gc_match_payouts_to_creditor_bank_account()
+            print "Matching mandates to customer bank accounts"
+            self.gc_match_mandate_to_customer_bank_account()
+
+            # Pickle it!
+            pickle.dump(self.payments, open("payments.p", "wb"))
+            pickle.dump(self.payouts, open("payouts.p", "wb"))
 
     def gc_get_payments(self):
         """Payment objects represent payments 
@@ -187,35 +264,11 @@ class GoCardless(TransactionGatewayAbstract):
 
 
 if __name__ == "__main__":
+    h = HSBCBusiness()
+    h.fetchTransactions()
     g = GoCardless()
-    # Load from pickle if there
-    if os.path.isfile('payments.p') and os.path.isfile('payouts.p'):
-        g.payments = pickle.load(open('payments.p', 'rb'))
-        g.payouts = pickle.load(open('payouts.p', 'rb'))
-    else:
-        print "Getting all GoCardless payments"
-        g.gc_get_payments()
-        print "Getting all GoCardless payouts"
-        g.gc_get_payouts()
-        print "Matching payments to payouts"
-        g.gc_match_payments_to_payouts()
-        print "Matching payments to mandates"
-        g.gc_match_payments_to_mandate()
-        print "Matching mandate to customers" 
-        g.gc_match_mandate_to_customer()
-        print "Matching payments to subscriptions"
-        g.gc_match_payments_to_subscription()
-        print "Matching payments to creditors"
-        g.gc_match_payments_to_creditors()
-        print "Matching payouts to creditor bank accounts"
-        g.gc_match_payouts_to_creditor_bank_account()
-        print "Matching mandates to customer bank accounts"
-        g.gc_match_mandate_to_customer_bank_account()
-
-
-    # Pickle it!
-    pickle.dump(g.payments, open("payments.p", "wb"))
-    pickle.dump(g.payouts, open("payouts.p", "wb"))
+    g.fetchTransactions()
+    pass
 
 
 class Gamma(TransactionGatewayAbstract):
@@ -230,6 +283,8 @@ class Gamma(TransactionGatewayAbstract):
 
 #{
 #    'id': 'dsfd87487984423', # Controlled by us, possibly a hash of the dict?
+#    'source' : '' # TransactionGateway Short Name, controlled by us
+#    'links' : '' # To other TransactionGateways
 #    'journal': {
 #	'number': 'SAJ/2018/0197',
 #        'reference': 'part refund for x',
