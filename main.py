@@ -136,14 +136,6 @@ class GoCardless(TransactionGatewayAbstract):
 
     def __init__(self):
         self.transactions = []
-
-    def get_name(self):
-      return "GoCardless"
-
-    def get_short_name(self):
-      return "GC"
-
-    def init(self):
 	self.gcclient = gocardless_pro.Client(
 	    # We recommend storing your access token in an 
             # environment variable for security
@@ -151,6 +143,12 @@ class GoCardless(TransactionGatewayAbstract):
 	    # Change this to 'live' when you are ready to go live.
 	    environment = 'live'
 	)
+
+    def get_name(self):
+      return "GoCardless"
+
+    def get_short_name(self):
+      return "GC"
 
     def fetchTransactions(self):
         # Load from pickle if there
