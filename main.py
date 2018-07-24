@@ -13,7 +13,6 @@ import os, datetime, gocardless_pro, json
 import urllib2, pickle, csv
 from collections import namedtuple
 
-
 class TransactionGatewayAbstract:
     __metaclass__ = ABCMeta
 
@@ -36,6 +35,9 @@ class TransactionGatewayAbstract:
     def fetchTransactions(self):
         raise NotImplementedError()
 
+    def filterby(self, source_gateway=None, source_id=None):
+        return filter(lambda Transaction: "GC" in Transaction.reference, self.transactions)
+
 Transaction = namedtuple('Transaction', ['date', 'amount', 'reference',
                                          'description', 'currency', 'mandate', 
                                          'payout', 'creditor', 'created_at', 
@@ -45,6 +47,32 @@ Transaction = namedtuple('Transaction', ['date', 'amount', 'reference',
 
 Transaction.__new__.__defaults__ = (None,) * len(Transaction._fields)
 
+class SSOT:
+    """ Single Source Of Truth (SSOT) transaction gateway.
+    Merges other gateway transactions
+    """
+    transactions = []
+
+    def get_name(self):
+        return "Single Source of Truth"
+
+    @abstractmethod
+    def get_short_name(self):
+        return "SSOT"
+
+    @abstractmethod
+    def init(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def fetchTransactions(self):
+        self.transactions = HSBC.transactions + GC.transactions
+
+    def filterby(self, source_gateway=None, source_id=None, reference=None):
+        if source_gateway:
+            return filter(lambda x: source_gateway in x.source_gateway, self.transactions)
+        if reference:
+            return filter(lambda x: reference in x.reference, self.transactions)
 
 class Stripe(TransactionGatewayAbstract):
     def get_name(self):
@@ -299,17 +327,17 @@ class GoCardless(TransactionGatewayAbstract):
 
 
 if __name__ == "__main__":
-    h = HSBCBusiness()
-    h.fetchTransactions()
-    g = GoCardless()
-    g.fetchTransactions()
-    pass
+    HSBC = HSBCBusiness()
+    HSBC.fetchTransactions()
+    GC = GoCardless()
+    GC.fetchTransactions()
+    SSOT = SSOT()
+    SSOT.fetchTransactions()
 
 
 class Gamma(TransactionGatewayAbstract):
     def get_name(self):
       return "Gamma"
-
 
 
 ##############
