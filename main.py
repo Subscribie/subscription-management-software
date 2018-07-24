@@ -41,8 +41,7 @@ Transaction = namedtuple('Transaction', ['date', 'amount', 'reference',
                                          'payout', 'creditor', 'created_at', 
                                          'charge_date', 'customer_bank_account', 
                                          'customer', 'source_gateway', 
-                                         'source_type', 'source_id'], 
-                                         verbose=True)
+                                         'source_type', 'source_id'])
 
 Transaction.__new__.__defaults__ = (None,) * len(Transaction._fields)
 
@@ -82,7 +81,7 @@ class HSBCBusiness(TransactionGatewayAbstract):
             pass
 
         for statement_export in statement_exports: 
-            with open(statement_export, 'rb') as csvfile:
+            with open(''.join(['./exports/hsbc/', statement_export]), 'rb') as csvfile:
                 reader = csv.reader(csvfile, delimiter=',', quotechar='"')
                 header = next(reader) # Take header
                 for row in reader:
