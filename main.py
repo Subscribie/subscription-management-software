@@ -343,29 +343,3 @@ if __name__ == "__main__":
 class Gamma(TransactionGatewayAbstract):
     def get_name(self):
       return "Gamma"
-
-
-##############
-
-## My ideal transaction object? ###
-
-#{
-#    'id': 'dsfd87487984423', # Controlled by us, possibly a hash of the dict?
-#    'source' : '' # TransactionGateway Short Name, controlled by us
-#    'links' : '' # To other TransactionGateways
-#    'journal': {
-#	'number': 'SAJ/2018/0197',
-#        'reference': 'part refund for x',
-#        'data': '07/10/2018',
-#        'period': '07/2018',
-#        'journal': 'Sales Journal (GBP)', 
-#        'Customer': 'ACE Corp',
-#        'Amount': 123,
-#        'Currency': 'GBP', 
-#	'Vatable'
-#        
-#    },
-#}
-
-
-##################
