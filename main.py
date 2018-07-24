@@ -12,6 +12,10 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 import os, datetime, gocardless_pro, json
 import urllib2, pickle, csv
 from collections import namedtuple
+from flask import  Flask
+from flask import jsonify
+
+app = Flask(__name__)
 
 class TransactionGatewayAbstract:
     __metaclass__ = ABCMeta
@@ -144,6 +148,9 @@ class GoCardless(TransactionGatewayAbstract):
 	    environment = 'live'
 	)
 
+    def init(self):
+        pass
+
     def get_name(self):
       return "GoCardless"
 
@@ -185,15 +192,15 @@ class GoCardless(TransactionGatewayAbstract):
             source_id = transaction.id
             date = transaction.attributes['charge_date']
             amount = transaction.attributes['amount']
-            reference = transaction.attributes['links']['mandate'].attributes['reference']
+            reference = transaction.attributes['links']['mandate']['reference']
             description = transaction.attributes['description']
             created_at = transaction.attributes['created_at']
             currency = transaction.attributes['currency']
             mandate = transaction.attributes['links']['mandate']
             charge_date = transaction.attributes['charge_date']
             creditor = transaction.attributes['links']['creditor']
-            customer_bank_account = transaction.attributes['links']['mandate'].attributes['links']['customer_bank_account'] #TODO abstract
-            customer = transaction.attributes['links']['mandate'].attributes['links']['customer']  #TODO abstract
+            customer_bank_account = transaction.attributes['links']['mandate']['links']['customer_bank_account'] #TODO abstract
+            customer = transaction.attributes['links']['mandate']['links']['customer']  #TODO abstract
 
             self.transactions.append(Transaction(source_gateway=source_gateway,
                                  source_id=source_id, date=date, amount=amount,
@@ -255,7 +262,7 @@ class GoCardless(TransactionGatewayAbstract):
         for payoutindex,payout in enumerate(self.payouts):
             creditor_bank_account_id = payout.attributes['links']['creditor_bank_account']
             creditor_bank_account = self.gcclient.creditor_bank_accounts.get(creditor_bank_account_id)
-            self.payouts[payoutindex].attributes['links']['creditor_bank_account'] = creditor_bank_account
+            self.payouts[payoutindex].attributes['links']['creditor_bank_account'] = creditor_bank_account.attributes
 
     def gc_match_payments_to_payouts(self):
         """For each payment (if has been paid out), fetch the full  payout meta 
@@ -269,7 +276,7 @@ class GoCardless(TransactionGatewayAbstract):
                 # Update payment reference with full payout meta
                 for payoutindex,payout in enumerate(self.payouts):
                     if self.payouts[payoutindex].id == payout_id:
-                        payment.attributes['links']['payout'] = self.payouts[payoutindex]
+                        payment.attributes['links']['payout'] = self.payouts[payoutindex].attributes
 
     def gc_match_payments_to_mandate(self):
         """For each payment, update the links->mandate id reference with the 
@@ -280,7 +287,7 @@ class GoCardless(TransactionGatewayAbstract):
 	    mandate_id = payment.attributes['links']['mandate']
             mandate = self.gcclient.mandates.get(mandate_id)
             # Replace mandate id refernce with full mandate metadata
-            self.payments[paymentindex].attributes['links']['mandate'] = mandate
+            self.payments[paymentindex].attributes['links']['mandate'] = mandate.attributes
 
     def gc_match_payments_to_subscription(self):
         """For each payment, (if a subscription exists) update the 
@@ -293,7 +300,7 @@ class GoCardless(TransactionGatewayAbstract):
                 subscription_id = payment.attributes['links']['subscription']
                 subscription = self.gcclient.subscriptions.get(subscription_id)
                 # Update subsciption reference with full subscription meta
-                self.payments[paymentindex].attributes['links']['subscription'] = subscription
+                self.payments[paymentindex].attributes['links']['subscription'] = subscription.attributes
 
     def gc_match_mandate_to_customer(self):
         """For each payment's mandate, update its 
@@ -302,9 +309,9 @@ class GoCardless(TransactionGatewayAbstract):
         :return: None 
         """
         for paymentindex,payment in enumerate(self.payments):
-            customer_id = payment.attributes['links']['mandate'].attributes['links']['customer']
+            customer_id = payment.attributes['links']['mandate']['links']['customer']
             customer = self.gcclient.customers.get(customer_id)
-            self.payments[paymentindex].attributes['links']['mandate'].attributes['links']['customer'] = customer
+            self.payments[paymentindex].attributes['links']['mandate']['links']['customer'] = customer.attributes
 
     def gc_match_mandate_to_customer_bank_account(self):
         """For each payment's mandate, update its
@@ -313,9 +320,9 @@ class GoCardless(TransactionGatewayAbstract):
         :return: None 
         """
         for paymentindex,payment in enumerate(self.payments):
-            customer_bank_account_id = payment.attributes['links']['mandate'].attributes['links']['customer_bank_account']
+            customer_bank_account_id = payment.attributes['links']['mandate']['links']['customer_bank_account']
             customer_bank_account = self.gcclient.customer_bank_accounts.get(customer_bank_account_id)
-            self.payments[paymentindex].attributes['links']['mandate'].attributes['links']['customer_bank_account'] = customer_bank_account
+            self.payments[paymentindex].attributes['links']['mandate']['links']['customer_bank_account'] = customer_bank_account.attributes
 
     def gc_match_payments_to_creditors(self):
         """For each payment, update its 
@@ -326,16 +333,26 @@ class GoCardless(TransactionGatewayAbstract):
         for paymentindex,payment in enumerate(self.payments):
             creditor_id = payment.attributes['links']['creditor']
             creditor = self.gcclient.creditors.get(creditor_id)
-            self.payments[paymentindex].attributes['links']['creditor'] = creditor
+            self.payments[paymentindex].attributes['links']['creditor'] = creditor.attributes
 
 
 if __name__ == "__main__":
-    HSBC = HSBCBusiness()
-    HSBC.fetchTransactions()
-    GC = GoCardless()
-    GC.fetchTransactions()
-    SSOT = SSOT()
-    SSOT.fetchTransactions()
+    pass
+
+HSBC = HSBCBusiness()
+HSBC.fetchTransactions()
+GC = GoCardless()
+GC.fetchTransactions()
+SSOT = SSOT()
+SSOT.fetchTransactions()
+
+@app.route('/ssot')
+def ssot():
+    return jsonify(SSOT.transactions)
+
+@app.route('/ssot/fuzzy')
+def ssot_fuzzy():
+    return jsonify(SSOT.fuzzygroup())
 
 
 class Gamma(TransactionGatewayAbstract):
