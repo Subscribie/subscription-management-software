@@ -35,8 +35,6 @@ class TransactionGatewayAbstract:
     def fetchTransactions(self):
         raise NotImplementedError()
 
-    def filterby(self, source_gateway=None, source_id=None):
-        return filter(lambda Transaction: "GC" in Transaction.reference, self.transactions)
 
 Transaction = namedtuple('Transaction', ['date', 'amount', 'reference',
                                          'description', 'currency', 'mandate', 
@@ -56,23 +54,30 @@ class SSOT:
     def get_name(self):
         return "Single Source of Truth"
 
-    @abstractmethod
     def get_short_name(self):
         return "SSOT"
 
-    @abstractmethod
     def init(self):
         raise NotImplementedError()
 
-    @abstractmethod
     def fetchTransactions(self):
         self.transactions = HSBC.transactions + GC.transactions
 
-    def filterby(self, source_gateway=None, source_id=None, reference=None):
+    def filterby(self, source_gateway=None, source_id=None, reference=None, *args, **kwargs):
         if source_gateway:
             return filter(lambda x: source_gateway in x.source_gateway, self.transactions)
         if reference:
             return filter(lambda x: reference in x.reference, self.transactions)
+
+    def fuzzygroup(self):
+        matches = {}
+        for transaction in SSOT.transactions:
+             if transaction.reference in matches:
+                 matches[transaction.reference].append(transaction)
+             else:
+                 matches[transaction.reference] = [transaction]
+        return matches
+
 
 class Stripe(TransactionGatewayAbstract):
     def get_name(self):
