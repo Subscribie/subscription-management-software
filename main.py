@@ -14,6 +14,7 @@ import urllib2, pickle, csv
 from collections import namedtuple
 from flask import  Flask
 from flask import jsonify
+from flask import render_template
 
 app = Flask(__name__)
 
@@ -72,6 +73,8 @@ class SSOT:
             return filter(lambda x: source_gateway in x.source_gateway, self.transactions)
         if reference:
             return filter(lambda x: reference in x.reference, self.transactions)
+	#Fallback return all
+        return self.transactions
 
     def fuzzygroup(self):
         matches = {}
@@ -130,11 +133,12 @@ class HSBCBusiness(TransactionGatewayAbstract):
                         amount = ''.join(['-',row[3]]) #HSBC payout
                     if len(row[4]) is not 1: #HSBC payment inward
                         amount = row[4]
-
-                    self.transactions.append(Transaction(source_gateway='HSBCB',
+		    transaction = Transaction(source_gateway='HSBCB',
                                              source_id=row[2],source_type=row[1],
                                              date=row[0], amount=amount, 
-                                             reference=row[2], currency='GBP'))
+                                             reference=row[2], currency='GBP')
+		    if transaction not in self.transactions:
+		        self.transactions.append(transaction)
 
 class GoCardless(TransactionGatewayAbstract):
 
@@ -202,11 +206,13 @@ class GoCardless(TransactionGatewayAbstract):
             customer_bank_account = transaction.attributes['links']['mandate']['links']['customer_bank_account'] #TODO abstract
             customer = transaction.attributes['links']['mandate']['links']['customer']  #TODO abstract
 
-            self.transactions.append(Transaction(source_gateway=source_gateway,
+            transaction = Transaction(source_gateway=source_gateway,
                                  source_id=source_id, date=date, amount=amount,
                                  reference=reference, description=description,
                                  created_at=created_at, currency=currency,
-                                 mandate=mandate, charge_date=charge_date))
+                                 mandate=mandate, charge_date=charge_date)
+            if transaction not in self.transactions:
+                self.transactions.append(transaction)
 
     def gc_get_payments(self):
         """Payment objects represent payments 
@@ -346,13 +352,23 @@ GC.fetchTransactions()
 SSOT = SSOT()
 SSOT.fetchTransactions()
 
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
 @app.route('/ssot')
 def ssot():
     return jsonify(SSOT.transactions)
 
-@app.route('/ssot/fuzzy')
+@app.route('/fuzzymatch')
 def ssot_fuzzy():
     return jsonify(SSOT.fuzzygroup())
+
+@app.route('/source')
+@app.route('/source/<source>')
+def source(source=None):
+    return jsonify(SSOT.filterby(source_gateway=source))
 
 
 class Gamma(TransactionGatewayAbstract):
