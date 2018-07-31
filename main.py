@@ -87,6 +87,7 @@ Partner = namedtuple('Partner', ['uid',
                                  'shipping_state',
                                  'shipping_statecode',
                                  'active_mandates',
+                                 'delinquent'
                                  ])
 Partner.__new__.__defaults__ = (None,) * len(Partner._fields)
 
