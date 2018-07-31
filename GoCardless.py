@@ -1,11 +1,14 @@
 import os, pickle
-from TransactionGatewayAbstract import TransactionGatewayAbstract, Transaction
+import uuid
+from TransactionGatewayAbstract import TransactionGatewayAbstract
+from TransactionGatewayAbstract import Transaction, Partner
 import gocardless_pro
 
 class GoCardless(TransactionGatewayAbstract):
 
     def __init__(self):
         self.transactions = []
+        self.partners = []
 	self.gcclient = gocardless_pro.Client(
 	    # We recommend storing your access token in an 
             # environment variable for security
@@ -22,6 +25,61 @@ class GoCardless(TransactionGatewayAbstract):
 
     def get_short_name(self):
       return "GC"
+
+    def fetchPartners(self):
+        # Load from pickle if there
+        if os.path.isfile('gc_partners.p'):
+            self.partners = pickle.load(open('partners.p', 'rb'))
+        else:
+            print "Getting all GoCardless partners"
+            gc_partners = self.gc_get_partners()
+
+            # Pickle it!
+            #pickle.dump(self.payments, open("payments.p", "wb"))
+            #pickle.dump(self.payouts, open("payouts.p", "wb"))
+
+        # Transform to generic Partner tuple
+        for partner in gc_partners:
+            source_gateway = 'GC'
+            source_id = partner.id
+
+	    partnerRecord = Partner(uid=str(uuid.uuid4()),
+			     created_at = partner.created_at,                                   
+			     source_gateway = self.get_short_name(),                  
+			     source_id = partner.id,                                    
+			     language = partner.language,
+			     billing_email = partner.email,                    
+			     given_name = partner.given_name,                  
+			     family_name = partner.family_name,                                  
+			     company_name = partner.company_name,                                 
+			     billing_street = partner.address_line1,
+			     billing_city = partner.city,                                 
+			     billing_postal_code = partner.postal_code,                  
+			     billing_country_code = partner.country_code,
+			     shipping_street = partner.address_line1,
+			     shipping_city = partner.city,
+			     shipping_country_code = partner.country_code,
+			     shipping_postal_code = partner.postal_code,
+			     ) 
+
+            if partnerRecord not in self.partners:
+                self.partners.append(partnerRecord)
+
+    def gc_get_partners(self):
+        """Partner objects represent partners
+        :param None
+        :return: list of partners
+        """
+        partnerList = self.gcclient.customers.list()
+        records = partnerList.records
+        after = partnerList.after
+        while after is not None:
+            fetchedPartners = self.gcclient.customers.list(params={"after":after,
+                                                        "limit":500})
+            after =  fetchedPartners.after
+            records = records + fetchedPartners.records
+        return records 
+
 
     def fetchTransactions(self):
         # Load from pickle if there

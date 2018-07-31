@@ -8,39 +8,6 @@
     :license: GPLv3, see LICENSE for more details.
 """
 
-Partner = namedtuple('Partner', ['uid', 
-                                 'created_at',
-                                 'matched_source_gateways',
-                                 'links_partner_uids',
-                                 'language',
-                                 'billing_email',
-                                 'given_name',
-                                 'family_name',
-                                 'company_name',
-                                 'billing_street_number',
-                                 'billing_street',
-                                 'billing_city',
-                                 'billing_postal_code',
-                                 'billing_state',
-                                 'billing_state_code',
-                                 'billing_country',
-                                 'billing_country_code',
-                                 'billing_latitude',
-                                 'billing_longitude'
-                                 'shipping_street_number',
-                                 'shipping_street',
-                                 'shipping_city',
-                                 'shipping_country',
-                                 'shipping_country_code',
-                                 'shipping_latitude',
-                                 'shipping_longitude',
-                                 'shipping_postal_code',
-                                 'shipping_state',
-                                 'shipping_statecode',
-                                 'active_mandates',
-                                 'delinquent'
-                                 ])
-Partner.__new__.__defaults__ = (None,) * len(Partner._fields)
 
 '''
  How to decide if a partner is already matched in matched_source_gateways.
@@ -71,5 +38,7 @@ from Gamma import Gamma
 from webapp import app
 
 if __name__ == "__main__":
+    GC = GoCardless()
+    GC.fetchPartners()
     pass
 
