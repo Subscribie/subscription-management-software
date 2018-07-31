@@ -12,7 +12,9 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 import os, datetime, gocardless_pro, json
 import urllib2, pickle, csv
 from collections import namedtuple
+import flask
 from flask import  Flask
+from flask import json
 from flask import jsonify
 from flask import render_template
 
@@ -361,14 +363,23 @@ def home():
 def ssot():
     return jsonify(SSOT.transactions)
 
+@app.route('/fuzzyreference')
+@app.route('/fuzzyreference/<reference>')
+def fuzzy_reference(reference=None):
+    reference = flask.request.args['reference']
+    result = json.dumps(SSOT.filterby(reference=reference), sort_keys=True, indent=4, separators=(',', ': ')) 
+    return render_template('index.html', result=result)
+
 @app.route('/fuzzymatch')
 def ssot_fuzzy():
-    return jsonify(SSOT.fuzzygroup())
+    result = json.dumps(SSOT.fuzzygroup(), sort_keys=True, indent=4, separators=(',', ': ')) 
+    return render_template('index.html', result=result)
 
 @app.route('/source')
 @app.route('/source/<source>')
 def source(source=None):
-    return jsonify(SSOT.filterby(source_gateway=source))
+    result = json.dumps(SSOT.filterby(source_gateway=source), sort_keys=True, indent=4, separators=(',', ': ')) 
+    return render_template('index.html', result=result)
 
 
 class Gamma(TransactionGatewayAbstract):
