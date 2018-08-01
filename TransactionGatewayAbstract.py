@@ -15,7 +15,8 @@ Partner = namedtuple('Partner', ['uid',
                                  'source_gateway',                               
                                  'source_id',                                    
                                  'source_type',                                  
-                                 'matched_source_gateways',                      
+                                 'matched_source_gateways',
+                                 'matched_transaction_gateway_sources_ids',
                                  'links_partner_uids',                           
                                  'language',                                     
                                  'billing_email',                                
@@ -45,6 +46,14 @@ Partner = namedtuple('Partner', ['uid',
                                  'delinquent',
                                  ])
 Partner.__new__.__defaults__ = (None,) * len(Partner._fields)
+'''
+Partner attributes:
+
+ `matched_transaction_gateway_sources_ids`
+
+May be used to refer to matched ids corresponding to a TransactionGateway by 
+source (`get_short_name` && its `source_id`).
+'''
 
 class TransactionGatewayAbstract:                                                
     __metaclass__ = ABCMeta                                                      
