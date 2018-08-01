@@ -35,6 +35,12 @@ class SSOT(TransactionGatewayAbstract, PartnerGatewayAbstract):
 
     def filterby(self, source_gateway=None, source_id=None, reference=None, *args, **kwargs):
         if source_gateway:
+            try:
+                recordType = kwargs['recordType']
+                if recordType is "Partner":
+                    return filter(lambda x: source_gateway in x.source_gateway, self.partners)
+            except KeyError:
+                pass
             return filter(lambda x: source_gateway in x.source_gateway, self.transactions)
         if reference:
             return filter(lambda x: reference in x.reference, self.transactions)

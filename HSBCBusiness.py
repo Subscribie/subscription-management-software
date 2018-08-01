@@ -84,7 +84,7 @@ class HSBCBusiness(TransactionGatewayAbstract, PartnerGatewayAbstract):
                         amount = ''.join(['-',row[3]]) #HSBC payout
                     if len(row[4]) is not 1: #HSBC payment inward
                         amount = row[4]
-                    source_id = hashlib.sha512(str(row)).digest()
+                    source_id = `hashlib.sha512(str(row)).digest()`
                     source_type = row[1]
                     company_name = row[2]
 		    partner = Partner(uid = str(uuid.uuid4()),                                          

@@ -9,12 +9,22 @@ app = Flask(__name__)
 
 @app.route('/')                                                                  
 def home():                                                                      
-    return render_template('index.html')                                         
-                                                                                 
-@app.route('/ssot')                                                              
-def ssot():                                                                      
-    return jsonify(SSOT.transactions)                                            
-                                                                                 
+    return render_template('index.html')
+
+@app.route('/partners')
+@app.route('/customers')
+def partners():
+    mySSOT = SSOT()
+    mySSOT.fetchPartners()
+    return jsonify(mySSOT.partners)
+ 
+@app.route('/partners/<source>')                                                            
+@app.route('/customers/<source>')                                                   
+def partners_by_source(source):
+    mySSOT = SSOT()
+    mySSOT.fetchPartners()
+    return jsonify(mySSOT.filterby(source_gateway=source, recordType="Partner")) 
+
 @app.route('/fuzzyreference')                                                    
 @app.route('/fuzzyreference/<reference>')                                        
 def fuzzy_reference(reference=None):                                             
