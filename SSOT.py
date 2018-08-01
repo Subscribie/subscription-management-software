@@ -1,14 +1,16 @@
 from HSBCBusiness import HSBCBusiness
 from GoCardless import GoCardless
+from TransactionGatewayAbstract import TransactionGatewayAbstract
+from TransactionGatewayAbstract import PartnerGatewayAbstract
 
-class SSOT:
+class SSOT(TransactionGatewayAbstract, PartnerGatewayAbstract):
     """ Single Source Of Truth (SSOT) transaction gateway.
-    Merges other gateway transactions
+    Merges other gateway transactions, and partner gateways
     """
-    transactions = []
 
     def __init__(self):
         self.transactions = []
+        self.partners = []
         self.init()
 
     def get_name(self):
@@ -19,12 +21,17 @@ class SSOT:
 
     def init(self):
         self.HSBC = HSBCBusiness()                                                            
-        self.HSBC.fetchTransactions()                                                         
-        self.GC = GoCardless()                                                                
+        self.HSBC.fetchTransactions()
+        self.HSBC.fetchPartners()
+        self.GC = GoCardless()
         self.GC.fetchTransactions()
+        self.GC.fetchPartners()
 
     def fetchTransactions(self):
         self.transactions = self.HSBC.transactions + self.GC.transactions
+
+    def fetchPartners(self):
+        self.partners = self.HSBC.partners + self.GC.partners
 
     def filterby(self, source_gateway=None, source_id=None, reference=None, *args, **kwargs):
         if source_gateway:

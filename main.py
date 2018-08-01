@@ -21,5 +21,8 @@ if __name__ == "__main__":
     HSBC.fetchTransactions()
     GC = GoCardless()
     GC.fetchPartners()
+    SSOT = SSOT()
+    SSOT.fetchTransactions()
+    SSOT.fetchPartners()
     pass
 
