@@ -1,10 +1,11 @@
 import os, pickle
 import uuid
 from TransactionGatewayAbstract import TransactionGatewayAbstract
+from TransactionGatewayAbstract import PartnerGatewayAbstract
 from TransactionGatewayAbstract import Transaction, Partner
 import gocardless_pro
 
-class GoCardless(TransactionGatewayAbstract):
+class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
 
     def __init__(self):
         self.transactions = []
