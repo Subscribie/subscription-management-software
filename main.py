@@ -16,6 +16,9 @@ from Gamma import Gamma
 from webapp import app
 
 if __name__ == "__main__":
+    HSBC = HSBCBusiness()
+    HSBC.fetchPartners()
+    HSBC.fetchTransactions()
     GC = GoCardless()
     GC.fetchPartners()
     pass
