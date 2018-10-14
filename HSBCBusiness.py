@@ -13,10 +13,12 @@ class HSBCBusiness(TransactionGatewayAbstract, PartnerGatewayAbstract):
         self.transactions = []
         self.partners = []
 
-    def get_name(self):
+    @staticmethod
+    def get_name():
         return "HSBC Business"
 
-    def get_short_name(self):
+    @staticmethod
+    def get_short_name():
         return "HSBCB"
 
     def init(self):

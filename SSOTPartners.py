@@ -3,11 +3,13 @@ from TransactionGatewayAbstract import PartnerGatewayAbstract
 class SSOTPartners(PartnerGatewayAbstract):                                      
     def __init__(self):                                                          
         self.init()                                                              
-                                                                                 
-    def get_name(self):                                                          
-        return "SSOT Partners"                                                   
-                                                                                 
-    def get_short_name(self):                                                    
+
+    @staticmethod                                                                                 
+    def get_name():                                                          
+        return "SSOT Partners"
+
+    @staticmethod                                                                              
+    def get_short_name():                                                    
         return "SSOTPartners"                                                    
                                                                                  
     def init(self):                                                              

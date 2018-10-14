@@ -1,3 +1,4 @@
-class Stripe(TransactionGatewayAbstract):                                        
-    def get_name(self):                                                          
+class Stripe(TransactionGatewayAbstract):
+    @staticmethod
+    def get_name():                                                          
       return "Stripe"

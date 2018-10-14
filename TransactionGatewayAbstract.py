@@ -61,12 +61,12 @@ class TransactionGatewayAbstract:
     def __init__(self):                                                          
         self.init()                                                              
                                                                                  
-    @abstractmethod                                                              
-    def get_name(self):                                                          
+    @abstractmethod
+    def get_name():                                                          
         raise NotImplementedError()                                              
                                                                                  
-    @abstractmethod                                                              
-    def get_short_name(self):                                                    
+    @abstractmethod
+    def get_short_name():                                                    
         raise NotImplementedError()                                              
                                                                                  
     @abstractmethod                                                              

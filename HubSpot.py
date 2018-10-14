@@ -21,10 +21,12 @@ class HubSpot(PartnerGatewayAbstract):
     def init(self):
         pass
 
-    def get_name(self):
+    @staticmethod
+    def get_name():
       return "HubSpot"
 
-    def get_short_name(self):
+    @staticmethod
+    def get_short_name():
       return "HUBSPOT"
 
     def fetchPartners(self):

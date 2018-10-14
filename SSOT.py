@@ -13,10 +13,12 @@ class SSOT(TransactionGatewayAbstract, PartnerGatewayAbstract):
         self.partners = []
         self.init()
 
-    def get_name(self):
+    @staticmethod
+    def get_name():
         return "Single Source of Truth"
 
-    def get_short_name(self):
+    @staticmethod
+    def get_short_name():
         return "SSOT"
 
     def init(self):

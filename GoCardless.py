@@ -23,10 +23,12 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
     def init(self):
         pass
 
-    def get_name(self):
+    @staticmethod
+    def get_name():
       return "GoCardless"
 
-    def get_short_name(self):
+    @staticmethod
+    def get_short_name():
       return "GC"
 
     def fetchPartners(self):
