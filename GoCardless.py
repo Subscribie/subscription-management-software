@@ -34,14 +34,13 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
     def fetchPartners(self):
         # Load from pickle if there
         if os.path.isfile('gc_partners.p'):
-            self.partners = pickle.load(open('partners.p', 'rb'))
+            gc_partners = pickle.load(open('gc_partners.p', 'rb'))
         else:
             print "Getting all GoCardless partners"
             gc_partners = self.gc_get_partners()
 
             # Pickle it!
-            #pickle.dump(self.payments, open("payments.p", "wb"))
-            #pickle.dump(self.payouts, open("payouts.p", "wb"))
+            pickle.dump(gc_partners, open("gc_partners.p", "wb"))
 
         # Transform to generic Partner tuple
         for partner in gc_partners:
