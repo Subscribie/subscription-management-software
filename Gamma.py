@@ -1,5 +1,6 @@
 from TransactionGatewayAbstract import TransactionGatewayAbstract, Transaction
 
-class Gamma(TransactionGatewayAbstract):                                         
-    def get_name(self):                                                          
+class Gamma(TransactionGatewayAbstract):
+    @staticmethod
+    def get_name():                                                          
       return "Gamma"
