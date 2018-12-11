@@ -131,6 +131,7 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             created_at = transaction.attributes['created_at']
             currency = transaction.attributes['currency']
             mandate = transaction.attributes['links']['mandate']
+            payout = transaction.attributes['links']['payout']
             charge_date = transaction.attributes['charge_date']
             creditor = transaction.attributes['links']['creditor']
             customer_bank_account = transaction.attributes['links']['mandate']['links']['customer_bank_account'] #TODO abstract
@@ -140,7 +141,8 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
                                  source_id=source_id, date=date, amount=amount,
                                  reference=reference, description=description,
                                  created_at=created_at, currency=currency,
-                                 mandate=mandate, charge_date=charge_date)
+                                 mandate=mandate, payout=payout, 
+                                 charge_date=charge_date)
             if transaction not in self.transactions:
                 self.transactions.append(transaction)
 
@@ -212,7 +214,9 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
                 # Update payment reference with full payout meta
                 for payoutindex,payout in enumerate(self.payouts):
                     if self.payouts[payoutindex].id == payout_id:
-                        payment.attributes['links']['payout'] = self.payouts[payoutindex].attributes
+                        self.payments[paymentindex].attributes['links']['payout'] = payout.attributes
+            else:
+                payment.attributes['links']['payout'] = None
 
     def gc_match_payments_to_mandate(self):
         """For each payment, update the links->mandate id reference with the 
