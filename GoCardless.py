@@ -33,14 +33,16 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
 
     def fetchPartners(self):
         # Load from pickle if there
-        if os.path.isfile('gc_partners.p'):
-            gc_partners = pickle.load(open('gc_partners.p', 'rb'))
+        here = os.path.dirname(__file__)
+        gc_partners_file = os.path.join(here, 'gc_partners.p')
+        if os.path.isfile(gc_partners_file):
+            gc_partners = pickle.load(open(gc_partners_file, 'rb'))
         else:
             print "Getting all GoCardless partners"
             gc_partners = self.gc_get_partners()
 
             # Pickle it!
-            pickle.dump(gc_partners, open("gc_partners.p", "wb"))
+            pickle.dump(gc_partners, open(gc_partners_file, "wb"))
 
         # Transform to generic Partner tuple
         for partner in gc_partners:
@@ -87,9 +89,13 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
 
     def fetchTransactions(self):
         # Load from pickle if there
-        if os.path.isfile('payments.p') and os.path.isfile('payouts.p'):
-            self.payments = pickle.load(open('payments.p', 'rb'))
-            self.payouts = pickle.load(open('payouts.p', 'rb'))
+        here = os.path.dirname(__file__)
+        gc_payments_file = os.path.join(here, 'payments.p')
+        gc_payouts_file = os.path.join(here, 'payouts.p')
+
+        if os.path.isfile(gc_payments_file) and os.path.isfile(gc_payouts_file):
+            self.payments = pickle.load(open(gc_payments_file, 'rb'))
+            self.payouts = pickle.load(open(gc_payouts_file, 'rb'))
         else:
             print "Getting all GoCardless payments"
             self.gc_get_payments()
@@ -111,8 +117,8 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             self.gc_match_mandate_to_customer_bank_account()
 
             # Pickle it!
-            pickle.dump(self.payments, open("payments.p", "wb"))
-            pickle.dump(self.payouts, open("payouts.p", "wb"))
+            pickle.dump(self.payments, open(gc_payments_file, "wb"))
+            pickle.dump(self.payouts, open(gc_payouts_file, "wb"))
 
         # Transform to generic Transaction tuple
         for transaction in self.payments:
