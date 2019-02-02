@@ -77,6 +77,10 @@ class TransactionGatewayAbstract:
     def fetchTransactions(self):                                                 
         raise NotImplementedError()
 
+    @abstractmethod                                                              
+    def refreshTransactions(self):                                                 
+        raise NotImplementedError()
+
 
 class PartnerGatewayAbstract:                                                    
     __metaclass__ = ABCMeta
@@ -120,3 +124,6 @@ class PartnerGatewayAbstract:
     def fetchPartners(self):                                                     
         raise NotImplementedError()                                              
 
+    @abstractmethod                                                              
+    def refreshPartners(self):                                                 
+        raise NotImplementedError()

@@ -20,6 +20,12 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
 	    environment = 'live'
 	)
 
+    def default(elm, index, default=None):
+        try:
+            return elm[index]
+        except KeyError:
+            return default
+
     def init(self):
         pass
 
@@ -32,17 +38,8 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
       return "GC"
 
     def fetchPartners(self):
-        # Load from pickle if there
-        here = os.path.dirname(__file__)
-        gc_partners_file = os.path.join(here, 'gc_partners.p')
-        if os.path.isfile(gc_partners_file):
-            gc_partners = pickle.load(open(gc_partners_file, 'rb'))
-        else:
-            print "Getting all GoCardless partners"
-            gc_partners = self.gc_get_partners()
-
-            # Pickle it!
-            pickle.dump(gc_partners, open(gc_partners_file, "wb"))
+        print "Getting all GoCardless partners"
+        gc_partners = self.gc_get_partners()
 
         # Transform to generic Partner tuple
         for partner in gc_partners:
@@ -71,12 +68,24 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             if partnerRecord not in self.partners:
                 self.partners.append(partnerRecord)
 
-    def gc_get_partners(self):
+    def refreshPartners(self):
+        pass
+
+    def gc_get_partners(self, after=None):
         """Partner objects represent partners
         :param None
         :return: list of partners
         """
-        partnerList = self.gcclient.customers.list()
+        here = os.path.dirname(__file__)
+        gc_partners_file = os.path.join(here, 'gc_partners.p')
+        if os.path.isfile(gc_partners_file):
+            gc_partners = pickle.load(open(gc_partners_file, 'rb'))
+            if after is None and len(gc_partners) > 0:
+                after = gc_partners[-1].id
+        else:
+            gc_partners = []
+        partnerList = self.gcclient.customers.list(params={"after":after,
+                                                  "limit":500})
         records = partnerList.records
         after = partnerList.after
         while after is not None:
@@ -84,23 +93,28 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
                                                         "limit":500})
             after =  fetchedPartners.after
             records = records + fetchedPartners.records
-        return records 
+        self.payments = records
+        gc_partners.extend(records)
+        pickle.dump(gc_partners, open(gc_partners_file, 'wb'))
+        return gc_partners
 
 
-    def fetchTransactions(self):
+    def fetchTransactions(self, refresh=False, date_from = None):
         # Load from pickle if there
         here = os.path.dirname(__file__)
-        gc_payments_file = os.path.join(here, 'payments.p')
-        gc_payouts_file = os.path.join(here, 'payouts.p')
-
-        if os.path.isfile(gc_payments_file) and os.path.isfile(gc_payouts_file):
+        gc_transactions_file = os.path.join(here, 'gc_transactions.p')
+        gc_payments_file = os.path.join(here, 'gc_payments.p')
+        gc_payouts_file = os.path.join(here, 'gc_payouts.p')
+        if (os.path.isfile(gc_payments_file) and os.path.isfile(gc_payouts_file)
+            and os.path.isfile(gc_transactions_file)):
             self.payments = pickle.load(open(gc_payments_file, 'rb'))
             self.payouts = pickle.load(open(gc_payouts_file, 'rb'))
+            self.transactions = pickle.load(open(gc_transactions_file, 'rb'))
         else:
             print "Getting all GoCardless payments"
-            self.gc_get_payments()
+            self.gc_get_payments(date_from)
             print "Getting all GoCardless payouts"
-            self.gc_get_payouts()
+            self.gc_get_payouts(date_from)
             print "Matching payments to payouts"
             self.gc_match_payments_to_payouts()
             print "Matching payments to mandates"
@@ -115,38 +129,80 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             self.gc_match_payouts_to_creditor_bank_account()
             print "Matching mandates to customer bank accounts"
             self.gc_match_mandate_to_customer_bank_account()
+            # Transform to generic Transaction tuple
+            for transaction in self.payments:
+                source_gateway = 'GC'
+                source_id = transaction.id
+                date = transaction.attributes['charge_date']
+                amount = transaction.attributes['amount']
+                reference = transaction.attributes['reference']
+                description = transaction.attributes['description']
+                created_at = transaction.attributes['created_at']
+                currency = transaction.attributes['currency']
+                mandate = transaction.attributes['links'].get('mandate', None)
+                payout = transaction.attributes['links'].get('payout', None)
+                charge_date = transaction.attributes['charge_date']
+                creditor = transaction.attributes['links']['creditor']
+                try:
+                    customer_bank_account = transaction.attributes['links']['mandate']['links']['customer_bank_account'] #TODO abstract
+                except (KeyError, TypeError):
+                    customer_bank_account = None
+                    pass
+                try:
+                    customer = transaction.attributes['links']['mandate']['links']['customer']  #TODO abstract
+                except (KeyError, TypeError):
+                    customer = None
+                    pass
+
+                transaction = Transaction(source_gateway=source_gateway,
+                                     source_id=source_id, date=date, amount=amount,
+                                     reference=reference, description=description,
+                                     created_at=created_at, currency=currency,
+                                     mandate=mandate, payout=payout, 
+                                     charge_date=charge_date)
+                if transaction not in self.transactions:
+                    self.transactions.append(transaction)
 
             # Pickle it!
+            pickle.dump(self.transactions, open(gc_transactions_file, "wb"))
             pickle.dump(self.payments, open(gc_payments_file, "wb"))
             pickle.dump(self.payouts, open(gc_payouts_file, "wb"))
 
-        # Transform to generic Transaction tuple
-        for transaction in self.payments:
-            source_gateway = 'GC'
-            source_id = transaction.id
-            date = transaction.attributes['charge_date']
-            amount = transaction.attributes['amount']
-            reference = transaction.attributes['links']['mandate']['reference']
-            description = transaction.attributes['description']
-            created_at = transaction.attributes['created_at']
-            currency = transaction.attributes['currency']
-            mandate = transaction.attributes['links']['mandate']
-            payout = transaction.attributes['links']['payout']
-            charge_date = transaction.attributes['charge_date']
-            creditor = transaction.attributes['links']['creditor']
-            customer_bank_account = transaction.attributes['links']['mandate']['links']['customer_bank_account'] #TODO abstract
-            customer = transaction.attributes['links']['mandate']['links']['customer']  #TODO abstract
 
-            transaction = Transaction(source_gateway=source_gateway,
-                                 source_id=source_id, date=date, amount=amount,
-                                 reference=reference, description=description,
-                                 created_at=created_at, currency=currency,
-                                 mandate=mandate, payout=payout, 
-                                 charge_date=charge_date)
-            if transaction not in self.transactions:
-                self.transactions.append(transaction)
+    def refreshTransactions(self, date_from=None):
+        self.fetchTransactions(date_from=date_from, refresh=True)
 
-    def gc_get_payments(self):
+    def gc_fetch_resource(self, resourceName, params=None, after=None):
+        here = os.path.dirname(__file__)
+        resource_file = os.path.join(here, ''.join([resourceName, '.p']))
+        if os.path.isfile(resource_file):
+            items = pickle.load(open(resource_file, 'rb'))
+            if after is None and len(items) > 0:
+                after = items[-1].id
+        else:
+            items = []
+        itemsList = self.gcclient.resourceName.list(params={"after":after,
+                                                  "limit":500})
+        records = itemsList.records
+        after = itemsList.after
+        while after is not None:
+            if date_from is None:
+                fetchedItems = self.gcclient.resourceName.list(
+                                         params={"after":after,
+                                         "limit":500})
+            else:
+                fetchedItems = self.gcclient.resourceName.list(
+                                         params={"after":after,
+                                         "created_at[gt]":date_from,
+                                         "limit":500})
+            after =  fetchedItems.after
+            records = records + fetchedItems.records
+        items.extend(records)
+        pickle.dump(items, open(resource_file, 'wb'))
+        return items
+
+
+    def gc_get_payments(self, after=None, date_from=None):
         """Payment objects represent payments 
         from a customer to a creditor, taken against a Direct Debit mandate. 
         This method gets all the payments made to a merchant. WARNING remember
@@ -159,18 +215,36 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         :param None
         :return: list of payments
         """
-        paymentList = self.gcclient.payments.list()
+        here = os.path.dirname(__file__)
+        gc_payments_file = os.path.join(here, 'gc_payments.p')
+        if os.path.isfile(gc_payments_file):
+            gc_payments = pickle.load(open(gc_payments_file, 'rb'))
+            if after is None and len(gc_payments) > 0:
+                after = gc_payments[-1].id
+        else:
+            gc_payments = []
+        paymentList = self.gcclient.payments.list(params={"after":after,
+                                                  "limit":500})
         records = paymentList.records
         after = paymentList.after
         while after is not None:
-            fetchedPayments = self.gcclient.payments.list(params={"after":after,
-                                                        "limit":500})
+            if date_from is None:
+                fetchedPayments = self.gcclient.payments.list(
+                                         params={"after":after,
+                                         "limit":500})
+            else:
+                fetchedPayments = self.gcclient.payments.list(
+                                         params={"after":after,
+                                         "created_at[gt]":date_from,
+                                         "limit":500})
             after =  fetchedPayments.after
             records = records + fetchedPayments.records
-        self.payments = records
-        return records 
+        gc_payments.extend(records)
+        pickle.dump(gc_payments, open(gc_payments_file, 'wb'))
+        self.payments = gc_payments
+        return gc_payments
 
-    def gc_get_payouts(self):
+    def gc_get_payouts(self, after=None, date_from=None):
         """Payouts represent transfers from GoCardless to a creditor. 
         Each payout contains the funds collected from one or many payments. 
         Payouts are created automatically after a payment has been successfully 
@@ -180,15 +254,32 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         :param None
         :return: list of payouts
         """
-        payoutList = self.gcclient.payouts.list()
+        here = os.path.dirname(__file__)
+        gc_payouts_file = os.path.join(here, 'gc_payouts.p')
+        if os.path.isfile(gc_payouts_file):
+            gc_payouts = pickle.load(open(gc_payouts_file, 'rb'))
+            if after is None and len(gc_payouts) > 0:
+                after = gc_payouts[-1].id
+        else:
+            gc_payouts = []
+
+        payoutList = self.gcclient.payouts.list(params={"after":after,
+                                                  "limit":500})
         records = payoutList.records
         after = payoutList.after
         while after is not None:
-            fetchedPayouts = self.gcclient.payouts.list(params={"after":after,
-                                                        "limit":500})
+            if date_from is None:
+                fetchedPayouts = self.gcclient.payouts.list(params={"after":after,
+                                                            "limit":500})
+            else:
+                fetchedPayouts = self.gcclient.payouts.list(params={"after":after,
+                                                      "created_at[gt]":date_from,
+                                                      "limit":500})
             after =  fetchedPayouts.after
             records = records + fetchedPayouts.records
         self.payouts = records
+        gc_payouts.extend(records)
+        pickle.dump(gc_payouts, open(gc_payouts_file, 'wb'))
         return records
 
     def gc_match_payouts_to_creditor_bank_account(self):
@@ -228,7 +319,6 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             mandate = self.gcclient.mandates.get(mandate_id)
             # Replace mandate id refernce with full mandate metadata
             self.payments[paymentindex].attributes['links']['mandate'] = mandate.attributes
-
     def gc_match_payments_to_subscription(self):
         """For each payment, (if a subscription exists) update the 
         links->subscription id reference with the complete mandate data from 
