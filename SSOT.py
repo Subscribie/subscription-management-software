@@ -55,6 +55,9 @@ class SSOT(TransactionGatewayAbstract, PartnerGatewayAbstract):
         here = os.path.dirname(__file__)                                         
         payments_file = os.path.join(here, 'payments.p')                      
         payouts_file = os.path.join(here, 'payouts.p')
+        transactions_file = os.path.join(here, 'transactions.p')
+        if os.path.isfile(transactions_file):
+            os.remove(transactions_file)
         if os.path.isfile(payments_file):
             os.remove(payments_file)
         if os.path.isfile(payouts_file):

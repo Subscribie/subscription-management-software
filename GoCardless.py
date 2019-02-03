@@ -99,7 +99,20 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         return gc_partners
 
 
-    def fetchTransactions(self, refresh=False, date_from = None):
+    def fetchTransactions(self, refresh=False, **kwargs):
+        '''
+            Implements fetchTransactions for GoCardless
+            This calls the various GoCardless spesific apis
+            needed to create a TransactionGatewayAbstract 'Transaction'
+            
+            Populates this.transactions with a list of Transaction objects
+            If refresh is true, fetchTransactions is iself called again, with
+            'after' is usually set to the last id of the last fetched resource 
+            but GoCardless needs both payments and payouts, so we pass 
+            'payments_after' and 'payouts_after' as kwargs.
+            Any new resouces are then appended onto the self.transactions and 
+            pickled into gc_transactions.p, gc_payments, gc_payouts accordingly.
+        '''
         # Load from pickle if there
         here = os.path.dirname(__file__)
         gc_transactions_file = os.path.join(here, 'gc_transactions.p')
@@ -110,11 +123,24 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             self.payments = pickle.load(open(gc_payments_file, 'rb'))
             self.payouts = pickle.load(open(gc_payouts_file, 'rb'))
             self.transactions = pickle.load(open(gc_transactions_file, 'rb'))
-        else:
+
+        if (refresh is True or os.path.isfile(gc_payments_file) is False
+            or os.path.isfile(gc_payouts_file) is False or 
+            os.path.isfile(gc_transactions_file)):
+            if refresh is True:
+                ''' Get last gocardless payout & payment id we already have and 
+                    fetch from that point onward.
+                '''
+                payments_after = self.payments[0].id
+                payouts_after = self.payouts[0].id
+            else:
+                payments_after = None
+                payouts_after = None
+                
             print "Getting all GoCardless payments"
-            self.gc_get_payments(date_from)
+            self.gc_get_payments(after = payments_after)
             print "Getting all GoCardless payouts"
-            self.gc_get_payouts(date_from)
+            self.gc_get_payouts(after = payments_after)
             print "Matching payments to payouts"
             self.gc_match_payments_to_payouts()
             print "Matching payments to mandates"
@@ -162,15 +188,14 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
                                      charge_date=charge_date)
                 if transaction not in self.transactions:
                     self.transactions.append(transaction)
+        # Pickle it!
+        pickle.dump(self.transactions, open(gc_transactions_file, "wb"))
+        pickle.dump(self.payments, open(gc_payments_file, "wb"))
+        pickle.dump(self.payouts, open(gc_payouts_file, "wb"))
 
-            # Pickle it!
-            pickle.dump(self.transactions, open(gc_transactions_file, "wb"))
-            pickle.dump(self.payments, open(gc_payments_file, "wb"))
-            pickle.dump(self.payouts, open(gc_payouts_file, "wb"))
 
-
-    def refreshTransactions(self, date_from=None):
-        self.fetchTransactions(date_from=date_from, refresh=True)
+    def refreshTransactions(self, *args, **kwargs):
+        self.fetchTransactions(refresh=True)
 
     def gc_fetch_resource(self, resourceName, params=None, after=None):
         here = os.path.dirname(__file__)
@@ -315,10 +340,13 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         :return: None 
         """
         for paymentindex,payment in enumerate(self.payments):
-	    mandate_id = payment.attributes['links']['mandate']
-            mandate = self.gcclient.mandates.get(mandate_id)
-            # Replace mandate id refernce with full mandate metadata
-            self.payments[paymentindex].attributes['links']['mandate'] = mandate.attributes
+                if type(payment.attributes['links']['mandate']) is unicode:
+                    mandate_id = payment.attributes['links']['mandate']
+                elif type(payment.attributes['links']['mandate']) is dict:
+                    mandate_id = payment.attributes['links']['mandate']['id']
+                mandate = self.gcclient.mandates.get(mandate_id)
+                # Replace mandate id refernce with full mandate metadata
+                self.payments[paymentindex].attributes['links']['mandate'] = mandate.attributes
     def gc_match_payments_to_subscription(self):
         """For each payment, (if a subscription exists) update the 
         links->subscription id reference with the complete mandate data from 
@@ -327,7 +355,10 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         """
         for paymentindex,payment in enumerate(self.payments):
             if 'subscription' in payment.attributes['links']:
-                subscription_id = payment.attributes['links']['subscription']
+                if type(payment.attributes['links']['subscription']) is unicode:
+                    subscription_id = payment.attributes['links']['subscription']
+                elif type(payment.attributes['links']['subscription']) is dict:
+                    subscription_id = payment.attributes['links']['subscription']['id']
                 subscription = self.gcclient.subscriptions.get(subscription_id)
                 # Update subsciption reference with full subscription meta
                 self.payments[paymentindex].attributes['links']['subscription'] = subscription.attributes
@@ -361,7 +392,24 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         :return: None 
         """
         for paymentindex,payment in enumerate(self.payments):
-            creditor_id = payment.attributes['links']['creditor']
+            if type(payment.attributes['links']['creditor']) is unicode:
+                creditor_id = payment.attributes['links']['creditor']
+            elif type(payment.attributes['links']['creditor']) is dict:
+                creditor_id = payment.attributes['links']['creditor']['id']
             creditor = self.gcclient.creditors.get(creditor_id)
             self.payments[paymentindex].attributes['links']['creditor'] = creditor.attributes
 
+    def gc_get_payouts():
+        pass
+    def gc_get_mandates():
+        pass
+    def gc_get_customers():
+        pass
+    def gc_get_subscriptions():
+        pass
+    def gc_get_creditors():
+        pass
+    def gc_get_creditor_bank_accounts():
+        pass
+    def gc_get_customer_bank_accounts():
+        pass
