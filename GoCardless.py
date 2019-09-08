@@ -14,11 +14,11 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         # environment variable for security
         if access_token is None:
             access_token = os.getenv('gocardless')
-	self.gcclient = gocardless_pro.Client(
-	    # Change this to 'live' when you are ready to go live.
-        access_token,
-	    environment = 'live'
-	)
+        self.gcclient = gocardless_pro.Client(
+            # Change this to 'live' when you are ready to go live.
+            access_token,
+            environment = 'live'
+        )
 
     def init(self):
         pass
@@ -38,7 +38,7 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         if os.path.isfile(gc_partners_file):
             gc_partners = pickle.load(open(gc_partners_file, 'rb'))
         else:
-            print "Getting all GoCardless partners"
+            print("Getting all GoCardless partners")
             gc_partners = self.gc_get_partners()
 
             # Pickle it!
@@ -49,27 +49,27 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             source_gateway = 'GC'
             source_id = partner.id
 
-	    partnerRecord = Partner(uid=str(uuid.uuid4()),
-			     created_at = partner.created_at,                                   
-			     source_gateway = self.get_short_name(),                  
-			     source_id = partner.id,                                    
-			     language = partner.language,
-			     billing_email = partner.email,                    
-			     given_name = partner.given_name,                  
-			     family_name = partner.family_name,                                  
-			     company_name = partner.company_name,                                 
-			     billing_street = partner.address_line1,
-			     billing_city = partner.city,                                 
-			     billing_postal_code = partner.postal_code,                  
-			     billing_country_code = partner.country_code,
-			     shipping_street = partner.address_line1,
-			     shipping_city = partner.city,
-			     shipping_country_code = partner.country_code,
-			     shipping_postal_code = partner.postal_code,
-			     ) 
+        partnerRecord = Partner(uid=str(uuid.uuid4()),
+             created_at = partner.created_at,                                   
+             source_gateway = self.get_short_name(),                  
+             source_id = partner.id,                                    
+             language = partner.language,
+             billing_email = partner.email,                    
+             given_name = partner.given_name,                  
+             family_name = partner.family_name,                                  
+             company_name = partner.company_name,                                 
+             billing_street = partner.address_line1,
+             billing_city = partner.city,                                 
+             billing_postal_code = partner.postal_code,                  
+             billing_country_code = partner.country_code,
+             shipping_street = partner.address_line1,
+             shipping_city = partner.city,
+             shipping_country_code = partner.country_code,
+             shipping_postal_code = partner.postal_code,
+             ) 
 
-            if partnerRecord not in self.partners:
-                self.partners.append(partnerRecord)
+        if partnerRecord not in self.partners:
+            self.partners.append(partnerRecord)
 
     def gc_get_partners(self):
         """Partner objects represent partners
@@ -97,23 +97,23 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             self.payments = pickle.load(open(gc_payments_file, 'rb'))
             self.payouts = pickle.load(open(gc_payouts_file, 'rb'))
         else:
-            print "Getting all GoCardless payments"
+            print("Getting all GoCardless payments")
             self.gc_get_payments()
-            print "Getting all GoCardless payouts"
+            print("Getting all GoCardless payouts")
             self.gc_get_payouts()
-            print "Matching payments to payouts"
+            print("Matching payments to payouts")
             self.gc_match_payments_to_payouts()
-            print "Matching payments to mandates"
+            print("Matching payments to mandates")
             self.gc_match_payments_to_mandate()
-            print "Matching mandate to customers" 
+            print("Matching mandate to customers")
             self.gc_match_mandate_to_customer()
-            print "Matching payments to subscriptions"
+            print("Matching payments to subscriptions")
             self.gc_match_payments_to_subscription()
-            print "Matching payments to creditors"
+            print("Matching payments to creditors")
             self.gc_match_payments_to_creditors()
-            print "Matching payouts to creditor bank accounts"
+            print("Matching payouts to creditor bank accounts")
             self.gc_match_payouts_to_creditor_bank_account()
-            print "Matching mandates to customer bank accounts"
+            print("Matching mandates to customer bank accounts")
             self.gc_match_mandate_to_customer_bank_account()
 
             # Pickle it!
@@ -224,7 +224,7 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         :return: None 
         """
         for paymentindex,payment in enumerate(self.payments):
-	    mandate_id = payment.attributes['links']['mandate']
+            mandate_id = payment.attributes['links']['mandate']
             mandate = self.gcclient.mandates.get(mandate_id)
             # Replace mandate id refernce with full mandate metadata
             self.payments[paymentindex].attributes['links']['mandate'] = mandate.attributes

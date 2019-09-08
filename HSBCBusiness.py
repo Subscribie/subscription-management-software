@@ -52,11 +52,9 @@ class HSBCBusiness(TransactionGatewayAbstract, PartnerGatewayAbstract):
                         amount = ''.join(['-',row[3]]) #HSBC payout
                     if len(row[4]) is not 1: #HSBC payment inward
                         amount = row[4]
-		    transaction = Transaction(source_gateway='HSBCB',
-                                             source_id=row[2],source_type=row[1],
-                                             date=row[0], amount=amount, 
-                                             reference=row[2], currency='GBP')
-		    if transaction not in self.transactions:
+        transaction = Transaction(source_gateway='HSBCB', source_id=row[2],source_type=row[1],
+                                            date=row[0], amount=amount, reference=row[2], currency='GBP')
+        if transaction not in self.transactions:
 		        self.transactions.append(transaction)
     def fetchPartners(self):
         hsbc_partners = self.hsbc_fetch_partners()
@@ -86,15 +84,15 @@ class HSBCBusiness(TransactionGatewayAbstract, PartnerGatewayAbstract):
                         amount = ''.join(['-',row[3]]) #HSBC payout
                     if len(row[4]) is not 1: #HSBC payment inward
                         amount = row[4]
-                    source_id = `hashlib.sha512(str(row)).digest()`
+                    source_id = str(hashlib.sha512(str(row)).digest())
                     source_type = row[1]
                     company_name = row[2]
-		    partner = Partner(uid = str(uuid.uuid4()),                                          
+        partner = Partner(uid = str(uuid.uuid4()),                                          
 				     created_at = date,
 				     source_gateway = self.get_short_name(),
 				     source_id = source_id,                                    
 				     source_type = source_type,                                  
 				     company_name = company_name,                                 
 				     ) 
-		    if partner not in self.partners:
+        if partner not in self.partners:
 		        self.partners.append(partner)
