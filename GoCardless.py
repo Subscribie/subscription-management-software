@@ -31,11 +31,11 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
     def get_short_name():
       return "GC"
 
-    def fetchPartners(self):
-        # Load from pickle if there
+    def fetchPartners(self, **kwargs):
+        # Load from pickle if there, but only if kwargs refresh is false
         here = os.path.dirname(__file__)
         gc_partners_file = os.path.join(here, 'gc_partners.p')
-        if os.path.isfile(gc_partners_file):
+        if os.path.isfile(gc_partners_file) and kwargs.pop('refresh', False) is False:
             gc_partners = pickle.load(open(gc_partners_file, 'rb'))
         else:
             print("Getting all GoCardless partners")
@@ -87,13 +87,14 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         return records 
 
 
-    def fetchTransactions(self):
-        # Load from pickle if there
+    def fetchTransactions(self, **kwargs):
+        # Load from pickle if there, but only if kwargs refresh is false
         here = os.path.dirname(__file__)
         gc_payments_file = os.path.join(here, 'payments.p')
         gc_payouts_file = os.path.join(here, 'payouts.p')
 
-        if os.path.isfile(gc_payments_file) and os.path.isfile(gc_payouts_file):
+        if os.path.isfile(gc_payments_file) and os.path.isfile(gc_payouts_file) \
+           and kwargs.pop('refresh', False) is False:
             self.payments = pickle.load(open(gc_payments_file, 'rb'))
             self.payouts = pickle.load(open(gc_payouts_file, 'rb'))
         else:

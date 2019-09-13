@@ -8,12 +8,12 @@ class SSOT(TransactionGatewayAbstract, PartnerGatewayAbstract):
     Merges other gateway transactions, and partner gateways
     """
 
-    def __init__(self, target_gateways=None):
+    def __init__(self, target_gateways=None, refresh=False, **kwargs):
         self.target_gateways = target_gateways
         self.loaded_gateways = []
         self.transactions = []
         self.partners = []
-        self.init()
+        self.init(refresh=refresh)
 
     @staticmethod
     def get_name():
@@ -23,7 +23,7 @@ class SSOT(TransactionGatewayAbstract, PartnerGatewayAbstract):
     def get_short_name():
         return "SSOT"
 
-    def init(self):
+    def init(self, **kwargs):
         if self.target_gateways is None:
             self.HSBC = HSBCBusiness()
             self.HSBC.fetchTransactions()
@@ -40,8 +40,8 @@ class SSOT(TransactionGatewayAbstract, PartnerGatewayAbstract):
                 gatewayClass = getattr(gatewayModule,gatewayName)
                 shortName = gatewayClass.get_short_name()
                 gatewayInstance = gatewayClass(gateway['construct'])
-                gatewayInstance.fetchTransactions()
-                gatewayInstance.fetchPartners()
+                gatewayInstance.fetchTransactions(refresh=kwargs.pop('refresh',False))
+                gatewayInstance.fetchPartners(refresh=kwargs.pop('refresh', False))
                 # Dynamically runs: from <gatewayName> import <gatewayClass>
                 # and than adds <gatewayClass> instance as property to SSOT
                 setattr(self, shortName, gatewayInstance)
