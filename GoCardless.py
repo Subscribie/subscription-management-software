@@ -1,5 +1,5 @@
 import os, pickle
-import uuid
+import hashlib
 from TransactionGatewayAbstract import TransactionGatewayAbstract
 from TransactionGatewayAbstract import PartnerGatewayAbstract
 from TransactionGatewayAbstract import Transaction, Partner
@@ -49,7 +49,15 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             source_gateway = 'GC'
             source_id = partner.id
 
-            partnerRecord = Partner(uid=str(uuid.uuid4()),
+            # Set uid of Partner record as hash of its values
+            m = hashlib.sha256()
+            for attribute in partner.attributes:
+              value = partner.__getattribute__(attribute)
+              if value is not None:
+                m.update(str(value).encode('utf-8'))
+            uid = m.hexdigest()
+
+            partnerRecord = Partner(uid=uid,
                  created_at = partner.created_at,                                   
                  source_gateway = self.get_short_name(),                  
                  source_id = partner.id,                                    
