@@ -76,6 +76,35 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
                  shipping_postal_code = partner.postal_code,
                  ) 
 
+            ######## Post to Kafka (don't do here, just testing)
+            from aiokafka import AIOKafkaProducer
+            import asyncio
+            import json
+
+            def serializer(value):
+              return json.dumps(value).encode()
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            async def send_one():
+                producer = AIOKafkaProducer(
+                    loop=loop, bootstrap_servers='localhost:9092',
+                    value_serializer=serializer,
+                    compression_type="gzip",
+                    enable_idempotence=True)
+                # Get cluster layout and initial topic/partition leadership information
+                await producer.start()
+                try:
+                    # Produce message
+                    await producer.send_and_wait("karmabroadband-partners", partnerRecord)
+                finally:
+                    # Wait for all pending messages to be delivered or expire.
+                    await producer.stop()
+
+            loop.run_until_complete(send_one())
+                                   
+            ########################
             if partnerRecord not in self.partners:
                 self.partners.append(partnerRecord)
 
