@@ -96,8 +96,18 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
                 # Get cluster layout and initial topic/partition leadership information
                 await producer.start()
                 try:
-                    # Produce message
-                    await producer.send_and_wait("karmabroadband-partners", partnerRecord)
+                    # Check not seen alread (by uuid)
+                    import sqlite3
+                    conn = sqlite3.connect('/home/chris/Documents/python/subscribie/subscription-management-software/seen.db')
+                    c = conn.cursor()
+                    c.execute('SELECT uid FROM seen WHERE uid=?',(uid,))
+                    result = c.fetchone()
+                    # Produce message if not already seen
+                    if result is None:
+                      await producer.send_and_wait("karmabroadband-partners", partnerRecord)
+                      c.execute("INSERT INTO seen VALUES (?)", (uid,))
+                      conn.commit()
+                    conn.close() # Always close db handle
                 finally:
                     # Wait for all pending messages to be delivered or expire.
                     await producer.stop()
