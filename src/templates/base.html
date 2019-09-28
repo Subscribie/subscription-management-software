@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    {% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>{% block title %}{% endblock %} - My Webpage</title>
+    {% endblock %}
+  </head>
+  <body>
+	<h2>Fuzzy Match</h2>
+
+    <ul>
+        <li><a href="/fuzzymatch">Group Match</a></li>
+        <li>
+        <form action="/fuzzyreference" method="GET">
+            Fuzzy Reference: <input type="text" name="reference" /><input type="submit" />
+        </form>
+        </li>
+    </ul>
+
+	<hr />
+
+	Data sources:
+	<ul>
+		<li><a href="/source/GC">GoCardless</a></li>
+		<li><a href="/source/HSBC">HSBC</a></li>
+	</ul>
+
+	Combinded SSOT (Single Source Of Truth):
+	<ul>
+		<li><a href="/source">All</a></li>
+	</ul>
+    <div id="content">{% block content %}{% endblock %}</div>
+    <div id="footer">
+      {% block footer %}
+      &copy; Copyright 2018 by Karma Computing Ltd.
+      {% endblock %}
+    </div>
+  </body>
+</html>
