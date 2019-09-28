@@ -39,7 +39,7 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             gc_partners = pickle.load(open(gc_partners_file, 'rb'))
         else:
             print("Getting all GoCardless partners")
-            gc_partners = self.gc_get_partners()
+            gc_partners = self.gc_get_resources('customers')
 
             # Pickle it!
             pickle.dump(gc_partners, open(gc_partners_file, "wb"))
