@@ -79,20 +79,20 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             if partnerRecord not in self.partners:
                 self.partners.append(partnerRecord)
 
-    def gc_get_partners(self):
-        """Partner objects represent partners
-        :param None
-        :return: list of partners
-        """
-        partnerList = self.gcclient.customers.list()
-        records = partnerList.records
-        after = partnerList.after
+    def gc_get_resources(self, name=''):
+        """Get all resource <name> from Gocardless api
+        :param name: the name of the api resource to fetch
+        :return: list of resources"""
+        resourceList = self.gcclient.__getattribute__(name).list()
+        records = resourceList.records
+        after = resourceList.after
         while after is not None:
-            fetchedPartners = self.gcclient.customers.list(params={"after":after,
+            fetchedRecords = self.gcclient.__getattribute__(name).list(params={"after":after,
                                                         "limit":500})
-            after =  fetchedPartners.after
-            records = records + fetchedPartners.records
-        return records 
+            after =  fetchedRecords.after
+            records = records + fetchedRecords.records
+        self.__setattr__(name, records)
+        return records
 
 
     def fetchTransactions(self, **kwargs):
@@ -107,9 +107,29 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             self.payouts = pickle.load(open(gc_payouts_file, 'rb'))
         else:
             print("Getting all GoCardless payments")
-            self.gc_get_payments()
+            self.gc_get_resources('payments')
+
             print("Getting all GoCardless payouts")
-            self.gc_get_payouts()
+            self.gc_get_resources('payouts')
+
+            print("Getting all mandates")
+            self.gc_get_resources('mandates')
+
+            print("Getting all customers")
+            self.gc_get_resources('customers')
+
+            print("Getting all subscriptions")
+            self.gc_get_resources('subscriptions')
+
+            print("Getting all creditors")
+            self.gc_get_resources('creditors')
+
+            print("Getting all creditor_bank_accounts")
+            self.gc_get_resources('creditor_bank_accounts')
+
+            print("Getting all customer_bank_accounts")
+            self.gc_get_resources('customer_bank_accounts')
+
             print("Matching payments to payouts")
             self.gc_match_payments_to_payouts()
             print("Matching payments to mandates")
@@ -155,51 +175,6 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
             if transaction not in self.transactions:
                 self.transactions.append(transaction)
 
-    def gc_get_payments(self):
-        """Payment objects represent payments 
-        from a customer to a creditor, taken against a Direct Debit mandate. 
-        This method gets all the payments made to a merchant. WARNING remember
-        a GoCardless `payment` means GoCardless has collected the money on your 
-        behalf, a confirmed `payout` means you actuall have the money in your 
-        account. With GoCardless, Payments are always made against a mandate 
-        (a customer MAY have more than one mandate). 
-        :meth:`gc_match_payments_to_payouts` matches payouts with payments by
-        updating self.payments with the full payout meta data.
-        :param None
-        :return: list of payments
-        """
-        paymentList = self.gcclient.payments.list()
-        records = paymentList.records
-        after = paymentList.after
-        while after is not None:
-            fetchedPayments = self.gcclient.payments.list(params={"after":after,
-                                                        "limit":500})
-            after =  fetchedPayments.after
-            records = records + fetchedPayments.records
-        self.payments = records
-        return records 
-
-    def gc_get_payouts(self):
-        """Payouts represent transfers from GoCardless to a creditor. 
-        Each payout contains the funds collected from one or many payments. 
-        Payouts are created automatically after a payment has been successfully 
-        collected. These payouts are grouped, and paid to the merchant as
-        payments (see gc_get_payments()) which are bundles of individual payouts, 
-        which means they need to be unbundled to be made sense of.
-        :param None
-        :return: list of payouts
-        """
-        payoutList = self.gcclient.payouts.list()
-        records = payoutList.records
-        after = payoutList.after
-        while after is not None:
-            fetchedPayouts = self.gcclient.payouts.list(params={"after":after,
-                                                        "limit":500})
-            after =  fetchedPayouts.after
-            records = records + fetchedPayouts.records
-        self.payouts = records
-        return records
-
     def gc_match_payouts_to_creditor_bank_account(self):
         """For each payout, update its
         payout.attributes['links']['creditor_bank_account'] reference with the 
@@ -208,8 +183,9 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         """
         for payoutindex,payout in enumerate(self.payouts):
             creditor_bank_account_id = payout.attributes['links']['creditor_bank_account']
-            creditor_bank_account = self.gcclient.creditor_bank_accounts.get(creditor_bank_account_id)
-            self.payouts[payoutindex].attributes['links']['creditor_bank_account'] = creditor_bank_account.attributes
+            for creditor_bank_account in self.creditor_bank_accounts:
+              if creditor_bank_account.id == creditor_bank_account_id:
+                self.payouts[payoutindex].attributes['links']['creditor_bank_account'] = creditor_bank_account.attributes
 
     def gc_match_payments_to_payouts(self):
         """For each payment (if has been paid out), fetch the full  payout meta 
@@ -234,9 +210,11 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         """
         for paymentindex,payment in enumerate(self.payments):
             mandate_id = payment.attributes['links']['mandate']
-            mandate = self.gcclient.mandates.get(mandate_id)
-            # Replace mandate id refernce with full mandate metadata
-            self.payments[paymentindex].attributes['links']['mandate'] = mandate.attributes
+            # Get mandate by id
+            for mandate in self.mandates:
+              if mandate.id == mandate_id:
+                # Replace mandate id refernce with full mandate metadata
+                self.payments[paymentindex].attributes['links']['mandate'] = mandate.attributes
 
     def gc_match_payments_to_subscription(self):
         """For each payment, (if a subscription exists) update the 
@@ -247,9 +225,10 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         for paymentindex,payment in enumerate(self.payments):
             if 'subscription' in payment.attributes['links']:
                 subscription_id = payment.attributes['links']['subscription']
-                subscription = self.gcclient.subscriptions.get(subscription_id)
-                # Update subsciption reference with full subscription meta
-                self.payments[paymentindex].attributes['links']['subscription'] = subscription.attributes
+                for subscription in self.subscriptions:
+                  if subscription.id == subscription_id:
+                    # Update subsciption reference with full subscription meta
+                    self.payments[paymentindex].attributes['links']['subscription'] = subscription.attributes
 
     def gc_match_mandate_to_customer(self):
         """For each payment's mandate, update its 
@@ -259,8 +238,9 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         """
         for paymentindex,payment in enumerate(self.payments):
             customer_id = payment.attributes['links']['mandate']['links']['customer']
-            customer = self.gcclient.customers.get(customer_id)
-            self.payments[paymentindex].attributes['links']['mandate']['links']['customer'] = customer.attributes
+            for customer in self.customers:
+              if customer.id == customer_id:
+                self.payments[paymentindex].attributes['links']['mandate']['links']['customer'] = customer.attributes
 
     def gc_match_mandate_to_customer_bank_account(self):
         """For each payment's mandate, update its
@@ -270,8 +250,9 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         """
         for paymentindex,payment in enumerate(self.payments):
             customer_bank_account_id = payment.attributes['links']['mandate']['links']['customer_bank_account']
-            customer_bank_account = self.gcclient.customer_bank_accounts.get(customer_bank_account_id)
-            self.payments[paymentindex].attributes['links']['mandate']['links']['customer_bank_account'] = customer_bank_account.attributes
+            for customer_bank_account in self.customer_bank_accounts:
+              if customer_bank_account.id == customer_bank_account_id:
+                self.payments[paymentindex].attributes['links']['mandate']['links']['customer_bank_account'] = customer_bank_account.attributes
 
     def gc_match_payments_to_creditors(self):
         """For each payment, update its 
@@ -281,6 +262,6 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         """
         for paymentindex,payment in enumerate(self.payments):
             creditor_id = payment.attributes['links']['creditor']
-            creditor = self.gcclient.creditors.get(creditor_id)
-            self.payments[paymentindex].attributes['links']['creditor'] = creditor.attributes
-
+            for creditor in self.creditors:
+              if creditor.id == creditor_id:
+                self.payments[paymentindex].attributes['links']['creditor'] = creditor.attributes
