@@ -24,5 +24,3 @@ if __name__ == "__main__":
     SSOT = SSOT()
     SSOT.fetchTransactions()
     SSOT.fetchPartners()
-    pass
-
