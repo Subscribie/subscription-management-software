@@ -7,7 +7,17 @@ import gocardless_pro
 
 class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
 
-    def __init__(self, access_token=None):
+    def __init__(self, construct):
+        try:
+            access_token = construct["access_token"]
+        except KeyError:
+            access_token = None
+
+        try:
+            environment = construct["environment"]
+        except KeyError:
+            environment = 'live'
+
         self.transactions = []
         self.partners = []
 	    # We recommend storing your access token in an 
@@ -17,7 +27,7 @@ class GoCardless(TransactionGatewayAbstract, PartnerGatewayAbstract):
         self.gcclient = gocardless_pro.Client(
             # Change this to 'live' when you are ready to go live.
             access_token,
-            environment = 'live'
+            environment = environment
         )
 
     def init(self):
